@@ -31,6 +31,8 @@ const UserSchema = new Schema(
     phoneNumber: { type: String, required: false, trim: true },
 
     token: { type: String, required: false },
+    otp: { type: String, required: false },
+    otpExpires: { type: String, required: false },
 
     fullName: { type: String, required: false },
 

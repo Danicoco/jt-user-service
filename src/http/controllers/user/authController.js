@@ -205,8 +205,8 @@ const Controller = {
 
           const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-          req.session.otp = otp;
-          req.session.otpExpires = Date.now() + 1800000;
+          const otpExpires = Date.now() + 1800000;
+          await User.updateOne({ _id: user._id }, { otp, otpExpires });
 
           const subject = "Reset Password Otp"
           const text = `Your otp is ${otp}. Kindly note that this will expire in 30 minutes. Cheers!`;
@@ -227,8 +227,10 @@ const Controller = {
         }
 
         try {
-          const storedOtp = req.session.otp;
-          const otpExpires = req.session.otpExpires;
+          const user = await User.findOne({ email: email.toLowerCase() })
+          if (!user) return jsonFailed(res, {}, "Invalid Account", 400);
+          const storedOtp = user.otp;
+          const otpExpires = user.otpExpires;
 
           if (Date.now() > otpExpires) {
             return jsonFailed(
@@ -242,10 +244,6 @@ const Controller = {
           if (otp !== storedOtp) {
             return jsonFailed(res, {}, "Invalid OTP. Please try again.", 400);
           }
-
-          req.session.isOtpVerified = true;
-          req.session.otp = undefined;
-          req.session.otpExpires = undefined;
 
           return jsonS(res, 200, "OTP verified successfully.");
         } catch (error) {
