@@ -135,7 +135,7 @@ const Controller = {
 
   createDrop: async (req, res) => {
     try {
-      const { courier, trackingNumber, pin, photoUrl } = req.body;
+      const { courier, trackingNumber, pin, photoUrl, pickup } = req.body;
       console.log(req.files, "FILES")
 
       if (!pin) {
@@ -152,6 +152,7 @@ const Controller = {
 
       const payload = {
         ...req.body,
+        ...(pickup && { pickup: JSON.parse(pickup)}),
         file: photoUrl,
         user: req.user,
         customerUserId: req.user.id,
