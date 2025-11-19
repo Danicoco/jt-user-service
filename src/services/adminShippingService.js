@@ -2,7 +2,7 @@ const axios = require('axios');
 const { ADMIN_SERVICE_URL, INTERNAL_SECRET } = process.env;
 
 const adminClient = axios.create({
-  baseURL: `${ADMIN_SERVICE_URL}/internal/shipping`,
+  baseURL: `${ADMIN_SERVICE_URL || 'https://admin-dev-api-363194b3852f.herokuapp.com/'}/internal/shipping`,
   headers: { 'x-internal-key': INTERNAL_SECRET },
   timeout: 5000
 });
