@@ -26,23 +26,8 @@ const Controller = {
         packageWeight,
         packageQuantity,
         packageDescription,
-        rateId,
+        total
       } = req.body;
-
-      if (!rateId) {
-        return jsonFailed(res, {}, "rateId is required", 400);
-      }
-
-      const rates = await getShippingRates({
-        type: "shipping",
-        category: packageCategory,
-        weight: Number(packageWeight),
-      });
-
-      const chosenRate = rates.find((r) => r._id === rateId);
-      if (!chosenRate) {
-        return jsonFailed(res, {}, "Invalid rate selected", 400);
-      }
 
       // DO NOT CHARGE USER AT THIS POINT
       // const { balance: remainingBalance } = await chargeWallet({
@@ -67,7 +52,7 @@ const Controller = {
           description: packageDescription,
         },
         payment: {
-          deliveryFee: chosenRate.rate,
+          deliveryFee: total
         },
       };
 

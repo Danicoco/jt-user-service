@@ -9,19 +9,15 @@ const truthy = (v) => {
 const Controller = {
   getShippingRates: async (req, res) => {
     try {
-      const { category, product, country, state, region, weight } = req.query;
+      const { category, product } = req.query;
 
-      if (!category || !country || !weight) {
+      if (!category || !product) {
         return jsonFailed(res, {}, 'category, country and weight are required', 400);
       }
-      console.log(req.query);
+      
       const rates = await getShippingRates({
         category,
-        product,               
-        country,
-        state,
-        region,
-        weight: Number(weight)
+        product,
       });
       if (!rates.length) return jsonFailed(res, {}, 'No available rate at the moment', 404)
       return jsonS(res, 200, 'Shipping rates fetched', rates);
