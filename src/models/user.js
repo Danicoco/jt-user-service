@@ -9,6 +9,7 @@ const DeliverySchema = new Schema(
     country: { type: String, required: true },
     zipCode: { type: String },
     city: { type: String },
+    state: { type: String },
     note: { type: String },
   },
   { _id: false }

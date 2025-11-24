@@ -87,7 +87,6 @@ const Controller = {
           return jsonFailed(res, {}, "Internal Server Error", 500);
         }
     },
-
      updateUserDelivery: async (req, res) => {
         const { id } = req.user;
       
