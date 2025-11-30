@@ -166,7 +166,8 @@ const Controller = {
     userCount: async (req, res) => {
       try {
         const total = await User.countDocuments({ isDeleted: { $ne: true } });
-        return jsonS(res, 200, 'OK', { count: total });
+        const referrals = await User.countDocuments({ referredBy: { $ne: null } });
+        return jsonS(res, 200, 'OK', { count: total, referrals });
       } catch (e) {
         console.error('users.count error:', e);
         return jsonFailed(res, {}, 'Error', 500);
