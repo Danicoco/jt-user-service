@@ -42,9 +42,9 @@ const UserSchema = new Schema(
 
     imageUrl: { type: String, required: false },
 
-    isVerified: { type: Boolean, default: 0 },
-    isActive: { type: Boolean, default: 0 },
-    isDeleted: { type: Boolean, default: 0 },
+    isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false },
 
     receiveMail: { type: Boolean, default: 1 },
     acceptedTerms: { type: Boolean, required: true, default: 1 },
