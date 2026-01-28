@@ -30,6 +30,7 @@
     "nodemailer": "^7.0.4",
     "twilio": "^5.7.2",
     "uuid": "^11.1.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "zeptomail": "^7.0.0"
   }
 }
