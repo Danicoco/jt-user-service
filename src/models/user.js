@@ -43,7 +43,7 @@ const UserSchema = new Schema(
     imageUrl: { type: String, required: false },
 
     isVerified: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
 
     receiveMail: { type: Boolean, default: 1 },
