@@ -211,23 +211,23 @@ const Controller = {
 
     try {
       const user = await User.findOne({ email: email.toLowerCase() });
-      if (!user) {
-        return jsonFailed(res, {}, "User not found", 404);
+      
+      if (user) {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+        const otpExpires = Date.now() + 1800000;
+        await User.updateOne({ _id: user._id }, { otp, otpExpires });
+  
+        const subject = "Reset Password Otp";
+        const text = `Your otp is ${otp}. Kindly note that this will expire in 30 minutes. Cheers!`;
+  
+        SendEmail(
+          user,
+          subject,
+          resendTemplate(user.firstName, text),
+        );
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-      const otpExpires = Date.now() + 1800000;
-      await User.updateOne({ _id: user._id }, { otp, otpExpires });
-
-      const subject = "Reset Password Otp";
-      const text = `Your otp is ${otp}. Kindly note that this will expire in 30 minutes. Cheers!`;
-
-      SendEmail(
-        user,
-        "Reset Your Password",
-        resendTemplate(user.firstName, text),
-      );
 
       return jsonS(res, 200, "Opt has been sent to your mail.");
     } catch (error) {

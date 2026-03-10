@@ -1,4 +1,4 @@
-const resendTemplate = (firstName, otp) => {
+const resendTemplate = (firstName, otpText) => {
     return `
     <!DOCTYPE html>
 <html>
@@ -91,7 +91,7 @@ const resendTemplate = (firstName, otp) => {
     <div class="content">
       <p>Hello ${firstName},</p>
 
-      <p>Use the verification code below to reset your Jamestown password</p>
+      <p>${otpText}</p>
       
       <p>If you did not initiate this action, kindly ignore.</p>
     </div>
