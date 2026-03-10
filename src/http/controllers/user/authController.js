@@ -261,6 +261,8 @@ const Controller = {
         return jsonFailed(res, {}, "Invalid OTP. Please try again.", 400);
       }
 
+      await User.updateOne({ _id: user._id }, { otp: '', otpExpires: null })
+
       return jsonS(res, 200, "OTP verified successfully.");
     } catch (error) {
       console.error("Error verifying OTP:", error);
@@ -276,18 +278,18 @@ const Controller = {
     }
 
     try {
-      if (!req.session.isOtpVerified) {
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return jsonFailed(res, {}, "User not found.", 404);
+      }
+
+      if (user.otp) {
         return jsonFailed(
           res,
           {},
           "OTP not verified. You cannot reset your password.",
           403,
         );
-      }
-
-      const user = await User.findOne({ email: email.toLowerCase() });
-      if (!user) {
-        return jsonFailed(res, {}, "User not found.", 404);
       }
 
       const hashedPassword = bcrypt.hashSync(newPassword, 8);
