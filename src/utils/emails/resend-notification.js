@@ -6,7 +6,7 @@ const resendTemplate = (firstName, otpText) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jamestown Transaction Notification</title>
+  <title>Jamestown Security Notification</title>
   <style>
     body {
       margin: 0;
@@ -85,7 +85,7 @@ const resendTemplate = (firstName, otpText) => {
   <div class="container">
 
     <div class="header">
-      <h1>Transaction Notification</h1>
+      <h1>Security Notification</h1>
     </div>
 
     <div class="content">
