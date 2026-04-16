@@ -5,6 +5,7 @@ const auth = require("../../middlewares/ambassadorAuth/authMiddleware");
 const router = express.Router();
 
 router.get("/profile", auth, UserController.getProfile);
+router.delete("/profile", auth, UserController.deleteProfile);
 router.get("/search", auth, UserController.searchUser);
 router.post("/fcm-token", auth, UserController.updateFcmToken);
 router.post("/fcm-token/remove", auth, UserController.removeFcmToken);

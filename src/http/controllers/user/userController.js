@@ -15,6 +15,16 @@ const Controller = {
           return jsonFailed(res, null, "Internal Server Error", 500);
         }
     },
+    deleteProfile: async(req, res) =>{
+        const { id } = req.user;
+        try {
+          await User.deleteOne({ _id: id });
+          return jsonS(res, 200, "success", null, {});
+        } catch (error) {
+          console.error(error);
+          return jsonFailed(res, null, "Internal Server Error", 500);
+        }
+    },
 
     searchUser: async (req, res) => {
         const raw = req.query.query;
