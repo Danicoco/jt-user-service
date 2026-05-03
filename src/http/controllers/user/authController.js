@@ -188,10 +188,10 @@ const Controller = {
 
   getToken: (user) => {
     var token = jwt.sign(
-      { id: user._id, ...user.toJSON(), is_user: true },
+      { id: user._id, ...user.toJSON(), is_user: true, isGen: true },
       config.jwt_secret,
       {
-        expiresIn: 7776000, // expires in 90 days
+        expiresIn: 3600, // expires in 1 hours
       },
     );
     var data = {
@@ -201,7 +201,8 @@ const Controller = {
       is_user: true,
       token: token,
       token_type: "jwt",
-      expiresIn: 7776000,
+      expiresIn: 3600,
+      isGen: true
     };
     return data;
   },

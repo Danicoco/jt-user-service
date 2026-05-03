@@ -29,6 +29,13 @@ const middleware = (req, res, next) => {
           error: err.message,
         });
       }
+      if (!decoded?.isGen) {
+        return res.status(403).json({
+          auth: false,
+          message: "Token expired or invalid.",
+          error: err.message,
+        });
+      }
       req.user = decoded;
       next();
     });
