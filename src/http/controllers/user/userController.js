@@ -70,6 +70,9 @@ const Controller = {
   updateFcmToken: async (req, res) => {
     const { id } = req.user;
     const { fcmToken } = req.body;
+    const platform = ["android", "ios", "web"].includes(req.body.platform)
+      ? req.body.platform
+      : "unknown";
 
     if (!fcmToken) {
       return jsonFailed(res, {}, "FCM token is required", 400);
@@ -81,11 +84,22 @@ const Controller = {
         return jsonFailed(res, {}, "User not found", 404);
       }
 
-      // Avoid duplicates
-      if (!user.fcmTokens.includes(fcmToken)) {
-        user.fcmTokens.push(fcmToken);
-        await user.save();
-      }
+      // a token belongs to one device; detach it from any other account first
+      await User.updateMany(
+        { _id: { $ne: id } },
+        { $pull: { fcmTokens: fcmToken, fcmDevices: { token: fcmToken } } },
+      );
+      await User.updateOne(
+        { _id: id },
+        {
+          $addToSet: { fcmTokens: fcmToken },
+          $pull: { fcmDevices: { token: fcmToken } },
+        },
+      );
+      await User.updateOne(
+        { _id: id },
+        { $push: { fcmDevices: { token: fcmToken, platform, updatedAt: new Date() } } },
+      );
 
       return jsonS(res, 200, "FCM token updated successfully");
     } catch (error) {
@@ -103,16 +117,13 @@ const Controller = {
     }
 
     try {
-      const user = await User.findById(id);
-      if (!user) {
+      const result = await User.updateOne(
+        { _id: id },
+        { $pull: { fcmTokens: fcmToken, fcmDevices: { token: fcmToken } } },
+      );
+      if (!result.matchedCount) {
         return jsonFailed(res, {}, "User not found", 404);
       }
-
-      const updatedTokens = user.fcmTokens.filter(
-        (token) => token !== fcmToken,
-      );
-      user.fcmTokens = updatedTokens;
-      await user.save();
 
       return jsonS(res, 200, "FCM token removed successfully");
     } catch (error) {
@@ -167,7 +178,7 @@ const Controller = {
   getUserId: async (req, res) => {
     try {
       const u = await User.findById(req.params.id)
-        .select("_id firstName lastName email phoneNumber")
+        .select("_id firstName lastName email phoneNumber createdAt")
         .lean();
       if (!u) return res.status(404).json({ error: "Not found" });
       res.json(u);
@@ -186,7 +197,7 @@ const Controller = {
       if (!ids.length) return res.status(400).json({ error: "ids required" });
 
       const users = await User.find({ _id: { $in: ids } })
-        .select("_id firstName lastName email phoneNumber")
+        .select("_id firstName lastName email phoneNumber createdAt")
         .lean();
 
       const map = {};

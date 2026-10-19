@@ -72,6 +72,42 @@ router.patch(
   InternalController.updateUserStatus
 );
 
+router.post(
+  "/users/:id/watchlist-flag",
+  internalAuth,
+  InternalController.flagWatchlist
+);
+
+router.get(
+  "/users/:id/status",
+  internalAuth,
+  InternalController.getUserStatus
+);
+
+router.patch(
+  "/users/:id/risk",
+  internalAuth,
+  InternalController.setRiskOverride
+);
+
+router.get(
+  "/users/email-recipients",
+  internalAuth,
+  InternalController.listEmailRecipients
+);
+
+router.get(
+  "/users/email-recipients/count",
+  internalAuth,
+  InternalController.countEmailRecipients
+);
+
+router.post(
+  "/push/send",
+  internalAuth,
+  InternalController.sendPush
+);
+
 router.get(
   "/orders/sales-data",
   internalAuth,

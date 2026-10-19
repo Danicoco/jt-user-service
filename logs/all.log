@@ -1,0 +1,88 @@
+2026-10-17 22:25:35:2535 [ [35mhttp[39m ]: [35mGET / 200 -- 1.069 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:35:2535 [ [35mhttp[39m ]: [35mGET / 200 -- 0.973 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:35:2535 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/signup 200 -- 515.974 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/verify/phone-number 200 -- 26.240 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 13.729 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 400 -- 13.186 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 13.864 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 200 -- 13.331 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 0.677 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 14.030 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 26.489 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 429 -- 0.554 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 200 -- 0.482 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 503 -- 13.980 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 200 -- 13.252 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 13.062 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.840 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.725 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.979 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.716 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 429 -- 0.462 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:36:2536 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 503 -- 20.650 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:47:2547 [ [35mhttp[39m ]: [35mGET / 200 -- 1.543 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:47:2547 [ [35mhttp[39m ]: [35mGET / 200 -- 1.356 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:47:2547 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/signup 200 -- 43.612 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/verify/phone-number 200 -- 33.123 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 14.966 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 400 -- 13.282 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 13.555 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 200 -- 13.053 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 200 -- 0.523 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 13.439 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/login 200 -- 26.694 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 429 -- 0.531 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 200 -- 0.367 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 503 -- 13.659 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 200 -- 14.045 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.975 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.804 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.684 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.962 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 400 -- 12.730 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/verify 429 -- 0.345 ms -- ::ffff:127.0.0.1[39m
+[35m[39m
+2026-10-17 22:25:48:2548 [ [35mhttp[39m ]: [35mPOST /api/v1/auth/phone/send-otp 503 -- 20.553 ms -- ::ffff:127.0.0.1[39m
+[35m[39m

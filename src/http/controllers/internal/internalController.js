@@ -2,6 +2,9 @@ const { jsonS, jsonFailed } = require("../../../utils");
 const { User } = require("../../../models/user");
 const Order = require("../../../models/order");
 const Address = require("../../../models/address");
+const Referral = require("../../../models/referral");
+const { sendPush } = require("../../../services/pushService");
+const { clearAccountStatus } = require("../../../services/accountStatusService");
 
 const PAID_STATUSES = ["pending", "confirmed", "in_transit", "completed"];
 const COUNTED_STATUSES = ["completed", "confirmed"];
@@ -80,6 +83,14 @@ const Controller = {
           },
         },
         {
+          $lookup: {
+            from: "referrals",
+            localField: "_id",
+            foreignField: "userId",
+            as: "referral",
+          },
+        },
+        {
           $project: {
             _id: 1,
             firstName: 1,
@@ -87,8 +98,17 @@ const Controller = {
             email: 1,
             phoneNumber: 1,
             isVerified: 1,
+            isPhoneVerified: 1,
             isActive: 1,
             createdAt: 1,
+            referredBy: 1,
+            riskOverride: 1,
+            watchlistFlag: 1,
+            referralsCount: {
+              $size: {
+                $ifNull: [{ $arrayElemAt: ["$referral.referredUsers", 0] }, []],
+              },
+            },
             location: {
               $let: {
                 vars: {
@@ -254,7 +274,7 @@ const Controller = {
 
       const user = await User.findOne({ _id: id, ...baseUserMatch })
         .select(
-          "_id firstName lastName email phoneNumber isVerified isActive createdAt imageUrl"
+          "_id firstName lastName email phoneNumber isVerified isPhoneVerified phoneVerifiedAt isActive createdAt imageUrl referredBy riskOverride watchlistFlag"
         )
         .lean();
 
@@ -265,7 +285,11 @@ const Controller = {
         .select("city state country")
         .lean();
 
-      const ordersCount = await Order.countDocuments({ userId: id });
+      const [ordersCount, referral] = await Promise.all([
+        Order.countDocuments({ userId: id }),
+        Referral.findOne({ userId: id }).select("referredUsers").lean(),
+      ]);
+      user.referralsCount = referral?.referredUsers?.length || 0;
 
       const location = addr
         ? [addr.city, addr.state].filter(Boolean).join(", ") ||
@@ -331,10 +355,167 @@ const Controller = {
       ).select("_id isActive");
 
       if (!updated) return jsonFailed(res, {}, "Not found", 404);
+      clearAccountStatus(id);
       return jsonS(res, 200, "OK", updated);
     } catch (e) {
       console.error("users.updateStatus error:", e);
       return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  // BVN watchlist hit: deactivate the account and record why
+  flagWatchlist: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { entryId, bvnLast4, reason } = req.body;
+
+      const updated = await User.findOneAndUpdate(
+        { _id: id, ...baseUserMatch },
+        {
+          $set: {
+            isActive: false,
+            watchlistFlag: { flagged: true, entryId, bvnLast4, reason, flaggedAt: new Date() },
+          },
+        },
+        { new: true }
+      ).select("_id firstName lastName email phoneNumber isActive watchlistFlag createdAt");
+
+      if (!updated) return jsonFailed(res, {}, "Not found", 404);
+      clearAccountStatus(id);
+      return jsonS(res, 200, "OK", updated);
+    } catch (e) {
+      console.error("users.flagWatchlist error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  // used by other services' auth middleware to refuse inactive accounts
+  getUserStatus: async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id)
+        .select("_id isActive isDeleted watchlistFlag")
+        .lean();
+      if (!user) return jsonFailed(res, {}, "Not found", 404);
+      return jsonS(res, 200, "OK", {
+        _id: user._id,
+        isActive: user.isActive !== false,
+        isDeleted: Boolean(user.isDeleted),
+        watchlistFlagged: Boolean(user.watchlistFlag?.flagged),
+      });
+    } catch (e) {
+      console.error("users.getStatus error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  setRiskOverride: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { level, note, setBy } = req.body;
+
+      let update;
+      if (level === null || level === "" || level === "auto") {
+        update = { $unset: { riskOverride: "" } };
+      } else if (["low", "medium", "high"].includes(level)) {
+        update = {
+          $set: { riskOverride: { level, note, setBy, setAt: new Date() } },
+        };
+      } else {
+        return jsonFailed(res, {}, "level must be low, medium, high or auto", 400);
+      }
+
+      const updated = await User.findOneAndUpdate(
+        { _id: id, ...baseUserMatch },
+        update,
+        { new: true }
+      ).select("_id riskOverride");
+
+      if (!updated) return jsonFailed(res, {}, "Not found", 404);
+      return jsonS(res, 200, "OK", updated);
+    } catch (e) {
+      console.error("users.setRiskOverride error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  // cursor-paginated recipients for email campaigns; honours receiveMail opt-out
+  listEmailRecipients: async (req, res) => {
+    try {
+      const limit = Math.min(
+        Math.max(parseInt(req.query.limit || "500", 10), 1),
+        1000
+      );
+      const { audience = "all", after } = req.query;
+
+      const match = {
+        ...baseUserMatch,
+        isActive: { $ne: false },
+        receiveMail: { $ne: false },
+        email: { $exists: true, $nin: [null, ""] },
+      };
+      if (audience === "verified") match.isVerified = true;
+      if (audience === "unverified") match.isVerified = { $ne: true };
+      if (audience === "phone_verified") match.isPhoneVerified = true;
+      if (after) match._id = { $gt: String(after) };
+
+      const rows = await User.find(match)
+        .sort({ _id: 1 })
+        .limit(limit)
+        .select("_id email firstName lastName")
+        .lean();
+
+      const next = rows.length === limit ? rows[rows.length - 1]._id : null;
+      return jsonS(res, 200, "OK", { recipients: rows, next });
+    } catch (e) {
+      console.error("users.emailRecipients error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  countEmailRecipients: async (req, res) => {
+    try {
+      const { audience = "all" } = req.query;
+      const match = {
+        ...baseUserMatch,
+        isActive: { $ne: false },
+        receiveMail: { $ne: false },
+        email: { $exists: true, $nin: [null, ""] },
+      };
+      if (audience === "verified") match.isVerified = true;
+      if (audience === "unverified") match.isVerified = { $ne: true };
+      if (audience === "phone_verified") match.isPhoneVerified = true;
+
+      const count = await User.countDocuments(match);
+      return jsonS(res, 200, "OK", { count });
+    } catch (e) {
+      console.error("users.emailRecipientsCount error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  sendPush: async (req, res) => {
+    try {
+      const { userIds, all, platforms, title, body, data, imageUrl } = req.body;
+      if (!title || !body) {
+        return jsonFailed(res, {}, "title and body are required", 400);
+      }
+      if (!all && !(Array.isArray(userIds) && userIds.length)) {
+        return jsonFailed(res, {}, "userIds or all=true is required", 400);
+      }
+
+      const result = await sendPush({
+        userIds: (userIds || []).map(String),
+        all: Boolean(all),
+        platforms,
+        title,
+        body,
+        data,
+        imageUrl,
+      });
+      return jsonS(res, 200, "OK", result);
+    } catch (e) {
+      console.error("push.send error:", e);
+      return jsonFailed(res, {}, "Failed to send push", 500);
     }
   },
 

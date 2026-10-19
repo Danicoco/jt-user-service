@@ -9,6 +9,8 @@ const errorHandler = require("./utils/errorHandler");
 const { jsonS } = require("./utils");
 const validateRequiredEnvs = require("./utils/requiredEnvs");
 const apiRoute = require("./routes/v1");
+const { mountDocs } = require("./docs");
+const buildApiSpec = require("./docs/spec");
 
 const app = express();
 
@@ -16,6 +18,9 @@ const app = express();
 validateRequiredEnvs();
 
 app.set("trust proxy", true);
+
+// API docs at /api-docs (mounted before helmet so its CSP doesn't block the UI)
+mountDocs(app, buildApiSpec);
 
 // 2. Middleware stack
 app.use(

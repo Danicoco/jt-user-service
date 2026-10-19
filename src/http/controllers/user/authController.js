@@ -15,6 +15,52 @@ const {
 } = require("../../../services/referralService");
 const verificationTemplate = require("../../../utils/emails/notification-template");
 const resendTemplate = require("../../../utils/emails/resend-notification");
+const { sendOtpSms } = require("../../../services/smsService");
+const {
+  normalizeNigerianPhone,
+  isValidNigerianPhone,
+  PHONE_RULE_MESSAGE,
+} = require("../../../utils/phone");
+
+const crypto = require("crypto");
+
+const PHONE_OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const PHONE_OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
+const PHONE_OTP_MAX_ATTEMPTS = 5;
+
+async function issuePhoneOtp(user) {
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        phoneOtp: bcrypt.hashSync(otp, 8),
+        phoneOtpExpires: new Date(Date.now() + PHONE_OTP_TTL_MS),
+        phoneOtpAttempts: 0,
+        phoneOtpSentAt: new Date(),
+      },
+    },
+  );
+  try {
+    await sendOtpSms(user.phoneNumber, otp);
+  } catch (err) {
+    // the SMS didn't go out: don't make the user wait out the resend cooldown
+    await User.updateOne({ _id: user._id }, { $unset: { phoneOtpSentAt: "" } });
+    throw err;
+  }
+}
+
+/**
+ * Send a phone OTP unless one went out within the cooldown.
+ * @returns {Promise<boolean>} whether a code was sent now
+ */
+async function sendPhoneOtpIfDue(user) {
+  const fresh = await User.findById(user._id).select("+phoneOtpSentAt").lean();
+  const last = fresh?.phoneOtpSentAt ? new Date(fresh.phoneOtpSentAt).getTime() : 0;
+  if (Date.now() - last < PHONE_OTP_RESEND_COOLDOWN_MS) return false;
+  await issuePhoneOtp(user);
+  return true;
+}
 
 const Controller = {
   signUp: async (req, res) => {
@@ -22,11 +68,15 @@ const Controller = {
       firstName,
       lastName,
       email,
-      phoneNumber,
       password,
       gender,
       referralCode,
     } = req.body;
+    const phoneNumber = normalizeNigerianPhone(req.body.phoneNumber);
+
+    if (!isValidNigerianPhone(phoneNumber)) {
+      return jsonFailed(res, {}, PHONE_RULE_MESSAGE, 400);
+    }
 
     try {
       const normalizedEmail = String(email || "").toLowerCase();
@@ -125,6 +175,23 @@ const Controller = {
       const passwordIsValid = await bcrypt.compare(password, user.password);
       if (!passwordIsValid) return jsonFailed(res, null, "Wrong Credentials");
 
+      // phone verification is required before an account can be used
+      if (!user.isPhoneVerified) {
+        let otpSent = false;
+        try {
+          otpSent = await sendPhoneOtpIfDue(user);
+        } catch (e) {
+          console.error("login phone otp error:", e.message);
+        }
+        return jsonS(res, 200, "Phone verification required", {
+          isPhoneVerified: false,
+          requiresPhoneVerification: true,
+          phoneNumber: user.phoneNumber,
+          email: user.email,
+          otpSent,
+        });
+      }
+
       req.session.user = user;
       const token = Controller.getToken(user);
       return jsonS(res, 200, "success", token, {});
@@ -136,7 +203,10 @@ const Controller = {
   },
 
   verifyPhoneNumber: async (req, res) => {
-    const { phoneNumber, otp } = req.body;
+    const { otp } = req.body;
+    const phoneNumber = req.body.phoneNumber
+      ? normalizeNigerianPhone(req.body.phoneNumber)
+      : req.body.phoneNumber;
     // let { token } = req.params; // temporily by passing token sent from twilio because of the free account
     try {
       if (!otp) return jsonFailed(res, null, "OTP cannot be empty", 400);
@@ -151,7 +221,23 @@ const Controller = {
       if (user) {
         if (user.otp !== otp) return jsonFailed(res, null, "User not found");        
         await User.findOneAndUpdate({ _id: user._id }, { otp: '', isVerified: true });
-        return jsonS(res, 200, "User verified");
+
+        // next step: verify the phone number by SMS
+        let otpSent = false;
+        if (!user.isPhoneVerified) {
+          try {
+            otpSent = await sendPhoneOtpIfDue(user);
+          } catch (e) {
+            console.error("post-email phone otp error:", e.message);
+          }
+        }
+        return jsonS(res, 200, "User verified", {
+          isVerified: true,
+          isPhoneVerified: Boolean(user.isPhoneVerified),
+          requiresPhoneVerification: !user.isPhoneVerified,
+          phoneNumber: user.phoneNumber,
+          otpSent,
+        });
       } else {
         return jsonFailed(res, null, "User not found");
       }
@@ -163,7 +249,10 @@ const Controller = {
 
   resendOtp: async (req, res) => {
     try {
-      const { phoneNumber, email } = req.body;
+      const { email } = req.body;
+      const phoneNumber = req.body.phoneNumber
+        ? normalizeNigerianPhone(req.body.phoneNumber)
+        : undefined;
       const user = await User.findOne({
         ...(phoneNumber && { phoneNumber }),
         ...(email && { email }),
@@ -183,6 +272,102 @@ const Controller = {
     } catch (error) {
       console.error(error);
       return jsonFailed(res, null, "Unable to verify number");
+    }
+  },
+
+  sendPhoneOtp: async (req, res) => {
+    const phoneNumber = normalizeNigerianPhone(req.body.phoneNumber);
+    if (!isValidNigerianPhone(phoneNumber)) {
+      return jsonFailed(res, {}, PHONE_RULE_MESSAGE, 400);
+    }
+
+    try {
+      const user = await User.findOne({ phoneNumber }).select(
+        "+phoneOtpSentAt",
+      );
+      // same response whether or not the number exists, to avoid leaking accounts
+      if (!user) return jsonS(res, 200, "If the number exists, an OTP has been sent");
+
+      if (user.isPhoneVerified) {
+        return jsonFailed(res, {}, "Phone number already verified", 400);
+      }
+      // the phone OTP comes after email verification
+      if (!user.isVerified) {
+        return jsonS(res, 200, "If the number exists, an OTP has been sent");
+      }
+
+      const lastSent = user.phoneOtpSentAt ? user.phoneOtpSentAt.getTime() : 0;
+      const waitMs = lastSent + PHONE_OTP_RESEND_COOLDOWN_MS - Date.now();
+      if (waitMs > 0) {
+        return jsonFailed(
+          res,
+          { retryAfterSeconds: Math.ceil(waitMs / 1000) },
+          "Please wait before requesting another OTP",
+          429,
+        );
+      }
+
+      try {
+        await issuePhoneOtp(user);
+      } catch (err) {
+        console.error("sendPhoneOtp SMS error:", err.message);
+        return jsonFailed(res, {}, "We couldn't send the SMS right now. Please try again shortly.", 503);
+      }
+      return jsonS(res, 200, "If the number exists, an OTP has been sent");
+    } catch (error) {
+      console.error("sendPhoneOtp error:", error);
+      return jsonFailed(res, {}, "Internal Server Error", 500);
+    }
+  },
+
+  verifyPhoneOtp: async (req, res) => {
+    const phoneNumber = normalizeNigerianPhone(req.body.phoneNumber);
+    const otp = String(req.body.otp || "").trim();
+
+    if (!otp) return jsonFailed(res, {}, "OTP cannot be empty", 400);
+    if (!isValidNigerianPhone(phoneNumber)) {
+      return jsonFailed(res, {}, PHONE_RULE_MESSAGE, 400);
+    }
+
+    try {
+      const user = await User.findOne({ phoneNumber }).select(
+        "+phoneOtp +phoneOtpExpires +phoneOtpAttempts",
+      );
+      // a retry/double submit after success shouldn't look like a failure
+      if (user?.isPhoneVerified) {
+        return jsonS(res, 200, "Phone number already verified");
+      }
+      if (!user || !user.phoneOtp) {
+        return jsonFailed(res, {}, "Invalid or expired OTP", 400);
+      }
+      if (!user.phoneOtpExpires || Date.now() > user.phoneOtpExpires.getTime()) {
+        return jsonFailed(res, {}, "OTP expired. Please request a new one.", 400);
+      }
+      if ((user.phoneOtpAttempts || 0) >= PHONE_OTP_MAX_ATTEMPTS) {
+        return jsonFailed(
+          res,
+          {},
+          "Too many attempts. Please request a new OTP.",
+          429,
+        );
+      }
+
+      if (!bcrypt.compareSync(otp, user.phoneOtp)) {
+        await User.updateOne({ _id: user._id }, { $inc: { phoneOtpAttempts: 1 } });
+        return jsonFailed(res, {}, "Invalid or expired OTP", 400);
+      }
+
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: { isPhoneVerified: true, phoneVerifiedAt: new Date() },
+          $unset: { phoneOtp: "", phoneOtpExpires: "", phoneOtpAttempts: "" },
+        },
+      );
+      return jsonS(res, 200, "Phone number verified");
+    } catch (error) {
+      console.error("verifyPhoneOtp error:", error);
+      return jsonFailed(res, {}, "Internal Server Error", 500);
     }
   },
 

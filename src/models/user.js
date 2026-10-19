@@ -24,6 +24,36 @@ const NotificationSchema = new Schema(
   { _id: false }
 );
 
+const FcmDeviceSchema = new Schema(
+  {
+    token: { type: String, required: true },
+    platform: { type: String, enum: ["android", "ios", "web", "unknown"], default: "unknown" },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const RiskOverrideSchema = new Schema(
+  {
+    level: { type: String, enum: ["low", "medium", "high"], required: true },
+    note: { type: String },
+    setBy: { type: String },
+    setAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const WatchlistFlagSchema = new Schema(
+  {
+    flagged: { type: Boolean, default: true },
+    entryId: { type: String },
+    bvnLast4: { type: String },
+    reason: { type: String },
+    flaggedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const UserSchema = new Schema(
   {
     _id: { type: String, required: true },
@@ -43,6 +73,15 @@ const UserSchema = new Schema(
     imageUrl: { type: String, required: false },
 
     isVerified: { type: Boolean, default: false },
+
+    // SMS number verification (separate from the email OTP above)
+    isPhoneVerified: { type: Boolean, default: false },
+    phoneVerifiedAt: { type: Date, required: false },
+    phoneOtp: { type: String, select: false },
+    phoneOtpExpires: { type: Date, select: false },
+    phoneOtpAttempts: { type: Number, default: 0, select: false },
+    phoneOtpSentAt: { type: Date, select: false },
+
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
 
@@ -68,6 +107,15 @@ const UserSchema = new Schema(
     },
 
     fcmTokens: { type: [String], default: [] },
+    // platform per token, so admin pushes can target android / ios
+    fcmDevices: { type: [FcmDeviceSchema], default: [] },
+
+    // manual risk level set by an admin; overrides the computed level when present
+    riskOverride: { type: RiskOverrideSchema, default: undefined },
+
+    // set when the user's BVN matches the admin BVN watchlist; the account is
+    // deactivated at the same time
+    watchlistFlag: { type: WatchlistFlagSchema, default: undefined },
 
     level: {
       type: String,

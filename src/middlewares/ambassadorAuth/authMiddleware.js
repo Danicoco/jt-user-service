@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const config = require("../../config/jwt");
+const { getAccountStatus } = require("../../services/accountStatusService");
 
 const middleware = (req, res, next) => {
   try {
@@ -33,11 +34,23 @@ const middleware = (req, res, next) => {
         return res.status(403).json({
           auth: false,
           message: "Token expired or invalid.",
-          error: err.message,
+          error: "Invalid token",
         });
       }
       req.user = decoded;
-      next();
+
+      // tokens outlive account changes, so check the account is still usable
+      getAccountStatus(String(decoded.id || decoded._id))
+        .then(({ blocked, reason }) => {
+          if (blocked) {
+            return res.status(403).json({ auth: false, message: reason, error: "Account inactive" });
+          }
+          next();
+        })
+        .catch((e) => {
+          console.error("authMiddleware account status error:", e);
+          return res.status(503).json({ auth: false, message: "Service temporarily unavailable" });
+        });
     });
   } catch (err) {
     console.error("Caught authMiddleware error:", err);
