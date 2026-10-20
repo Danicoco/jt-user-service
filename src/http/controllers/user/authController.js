@@ -176,21 +176,21 @@ const Controller = {
       if (!passwordIsValid) return jsonFailed(res, null, "Wrong Credentials");
 
       // phone verification is required before an account can be used
-      if (!user.isPhoneVerified) {
-        let otpSent = false;
-        try {
-          otpSent = await sendPhoneOtpIfDue(user);
-        } catch (e) {
-          console.error("login phone otp error:", e.message);
-        }
-        return jsonS(res, 200, "Phone verification required", {
-          isPhoneVerified: false,
-          requiresPhoneVerification: true,
-          phoneNumber: user.phoneNumber,
-          email: user.email,
-          otpSent,
-        });
-      }
+      // if (!user.isPhoneVerified) {
+      //   let otpSent = false;
+      //   try {
+      //     otpSent = await sendPhoneOtpIfDue(user);
+      //   } catch (e) {
+      //     console.error("login phone otp error:", e.message);
+      //   }
+      //   return jsonS(res, 200, "Phone verification required", {
+      //     isPhoneVerified: false,
+      //     requiresPhoneVerification: true,
+      //     phoneNumber: user.phoneNumber,
+      //     email: user.email,
+      //     otpSent,
+      //   });
+      // }
 
       req.session.user = user;
       const token = Controller.getToken(user);
