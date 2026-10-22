@@ -871,6 +871,27 @@ const routes = [
       404: fail("Not found"),
     },
   }),
+  route("post", "/internal/users/:id/duplicate-bvn-flag", {
+    tag: "Internal",
+    auth: "internal",
+    summary: "Deactivate an account whose BVN is also on another account",
+    description: "`keptUserId` is the account that keeps the BVN. The flag stays if the account is reactivated.",
+    params: { id: USER_ID },
+    body: { keptUserId: "0b7f3c2a-1d4e-4f5a-8b6c-7d8e9f0a1b2c", bvnLast4: "0001" },
+    responses: {
+      200: ok("OK", {
+        _id: USER_ID,
+        firstName: "Ada",
+        lastName: "Obi",
+        email: "ada.obi@example.com",
+        phoneNumber: "08012345678",
+        isActive: false,
+        duplicateBvnFlag: { flagged: true, keptUserId: "0b7f3c2a-1d4e-4f5a-8b6c-7d8e9f0a1b2c", bvnLast4: "0001", flaggedAt: DATE },
+        createdAt: DATE,
+      }),
+      404: fail("Not found"),
+    },
+  }),
   route("get", "/internal/users/:id/status", {
     tag: "Internal",
     auth: "internal",

@@ -78,6 +78,12 @@ router.post(
   InternalController.flagWatchlist
 );
 
+router.post(
+  "/users/:id/duplicate-bvn-flag",
+  internalAuth,
+  InternalController.flagDuplicateBvn
+);
+
 router.get(
   "/users/:id/status",
   internalAuth,

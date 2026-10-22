@@ -197,7 +197,7 @@ const Controller = {
       if (!ids.length) return res.status(400).json({ error: "ids required" });
 
       const users = await User.find({ _id: { $in: ids } })
-        .select("_id firstName lastName email phoneNumber createdAt")
+        .select("_id firstName lastName email phoneNumber createdAt isActive isDeleted duplicateBvnFlag")
         .lean();
 
       const map = {};

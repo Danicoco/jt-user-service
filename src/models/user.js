@@ -54,6 +54,16 @@ const WatchlistFlagSchema = new Schema(
   { _id: false }
 );
 
+const DuplicateBvnFlagSchema = new Schema(
+  {
+    flagged: { type: Boolean, default: true },
+    keptUserId: { type: String }, // the account that kept the BVN
+    bvnLast4: { type: String },
+    flaggedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const UserSchema = new Schema(
   {
     _id: { type: String, required: true },
@@ -116,6 +126,11 @@ const UserSchema = new Schema(
     // set when the user's BVN matches the admin BVN watchlist; the account is
     // deactivated at the same time
     watchlistFlag: { type: WatchlistFlagSchema, default: undefined },
+
+    // set when this account's BVN is also on another account and this one was
+    // deactivated; it stays after an admin reactivates the account, so the
+    // duplicate check doesn't deactivate it again
+    duplicateBvnFlag: { type: DuplicateBvnFlagSchema, default: undefined },
 
     level: {
       type: String,

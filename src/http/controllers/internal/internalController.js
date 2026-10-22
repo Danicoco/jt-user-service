@@ -104,6 +104,7 @@ const Controller = {
             referredBy: 1,
             riskOverride: 1,
             watchlistFlag: 1,
+            duplicateBvnFlag: 1,
             referralsCount: {
               $size: {
                 $ifNull: [{ $arrayElemAt: ["$referral.referredUsers", 0] }, []],
@@ -274,7 +275,7 @@ const Controller = {
 
       const user = await User.findOne({ _id: id, ...baseUserMatch })
         .select(
-          "_id firstName lastName email phoneNumber isVerified isPhoneVerified phoneVerifiedAt isActive createdAt imageUrl referredBy riskOverride watchlistFlag"
+          "_id firstName lastName email phoneNumber isVerified isPhoneVerified phoneVerifiedAt isActive createdAt imageUrl referredBy riskOverride watchlistFlag duplicateBvnFlag"
         )
         .lean();
 
@@ -385,6 +386,32 @@ const Controller = {
       return jsonS(res, 200, "OK", updated);
     } catch (e) {
       console.error("users.flagWatchlist error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  // BVN also on another account: deactivate this one and record which kept it
+  flagDuplicateBvn: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { keptUserId, bvnLast4 } = req.body;
+
+      const updated = await User.findOneAndUpdate(
+        { _id: id, ...baseUserMatch },
+        {
+          $set: {
+            isActive: false,
+            duplicateBvnFlag: { flagged: true, keptUserId, bvnLast4, flaggedAt: new Date() },
+          },
+        },
+        { new: true }
+      ).select("_id firstName lastName email phoneNumber isActive duplicateBvnFlag createdAt");
+
+      if (!updated) return jsonFailed(res, {}, "Not found", 404);
+      clearAccountStatus(id);
+      return jsonS(res, 200, "OK", updated);
+    } catch (e) {
+      console.error("users.flagDuplicateBvn error:", e);
       return jsonFailed(res, {}, "Error", 500);
     }
   },
