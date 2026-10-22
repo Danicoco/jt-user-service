@@ -163,6 +163,18 @@ router.patch(
 );
 
 router.get(
+  "/referrals/signups",
+  internalAuth,
+  InternalController.listReferralSignups
+);
+
+router.get(
+  "/referrals/:id/referred",
+  internalAuth,
+  InternalController.listReferredUsers
+);
+
+router.get(
   "/users/:id",
   internalAuth,
   UserController.getUserId

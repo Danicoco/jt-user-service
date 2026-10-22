@@ -160,6 +160,8 @@ UserSchema.virtual("displayName").get(function () {
 
 UserSchema.index({ email: 1 }, { unique: true, sparse: true });
 UserSchema.index({ phoneNumber: 1 }, { unique: true, sparse: true });
+// referral lists and the wallet service's referral reward sync
+UserSchema.index({ referredBy: 1, createdAt: -1 }, { sparse: true });
 
 const User = db.model("User", UserSchema);
 

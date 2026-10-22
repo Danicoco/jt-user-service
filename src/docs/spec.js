@@ -892,6 +892,26 @@ const routes = [
       404: fail("Not found"),
     },
   }),
+  route("get", "/internal/referrals/signups", {
+    tag: "Internal",
+    auth: "internal",
+    summary: "Referred users who signed up at or after `since`, oldest first (wallet service referral rewards)",
+    query: { since: { example: "2026-10-22T00:00:00.000Z", required: true }, limit: { example: 500, description: "max 1000" } },
+    responses: {
+      200: ok("OK", { signups: [{ userId: USER_ID, referrerId: "0b7f3c2a-1d4e-4f5a-8b6c-7d8e9f0a1b2c", createdAt: DATE }] }),
+      400: fail("since (ISO date) is required"),
+    },
+  }),
+  route("get", "/internal/referrals/:id/referred", {
+    tag: "Internal",
+    auth: "internal",
+    summary: "A page of the users someone referred, newest first",
+    params: { id: USER_ID },
+    query: { page: 1, limit: { example: 20, description: "max 100" } },
+    responses: {
+      200: ok("OK", { page: 1, limit: 20, total: 1, users: [{ _id: "0b7f3c2a-1d4e-4f5a-8b6c-7d8e9f0a1b2c", firstName: "Ada", lastName: "Obi", createdAt: DATE }] }),
+    },
+  }),
   route("get", "/internal/users/:id/status", {
     tag: "Internal",
     auth: "internal",

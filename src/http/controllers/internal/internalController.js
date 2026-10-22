@@ -807,6 +807,52 @@ const Controller = {
       return jsonFailed(res, {}, "Error", 500);
     }
   },
+
+  // referred users who signed up at or after `since`, oldest first (for the
+  // wallet service's referral rewards)
+  listReferralSignups: async (req, res) => {
+    try {
+      const since = new Date(req.query.since);
+      if (Number.isNaN(since.getTime())) return jsonFailed(res, {}, "since (ISO date) is required", 400);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 1000);
+
+      const users = await User.find({ referredBy: { $ne: null }, createdAt: { $gte: since } })
+        .sort({ createdAt: 1 })
+        .limit(limit)
+        .select("_id referredBy createdAt")
+        .lean();
+
+      return jsonS(res, 200, "OK", {
+        signups: users.map((u) => ({ userId: u._id, referrerId: u.referredBy, createdAt: u.createdAt })),
+      });
+    } catch (e) {
+      console.error("referrals.signups error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
+
+  // the people a user referred, newest first
+  listReferredUsers: async (req, res) => {
+    try {
+      const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+      const filter = { referredBy: req.params.id, ...baseUserMatch };
+
+      const [users, total] = await Promise.all([
+        User.find(filter)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .select("_id firstName lastName createdAt")
+          .lean(),
+        User.countDocuments(filter),
+      ]);
+      return jsonS(res, 200, "OK", { page, limit, total, users });
+    } catch (e) {
+      console.error("referrals.referred error:", e);
+      return jsonFailed(res, {}, "Error", 500);
+    }
+  },
 };
 
 module.exports = Controller;
