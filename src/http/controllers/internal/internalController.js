@@ -28,17 +28,37 @@ const buildOrderSearch = (q) => {
   return { $or: [{ checkoutRef: re }, { _id: re }] };
 };
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// matches first/last name, "first last", email, or phone; phones are stored
+// local (08012345678), so "+234 801..." is searched as "0801..."
 function buildUserSearch(search) {
-  if (!search) return {};
-  const re = new RegExp(String(search).trim(), "i");
-  return {
-    $or: [
-      { firstName: re },
-      { lastName: re },
-      { email: re },
-      { phoneNumber: re },
-    ],
-  };
+  const q = String(search || "").trim().replace(/\s+/g, " ");
+  if (!q) return {};
+  const pattern = escapeRegex(q);
+  const re = new RegExp(pattern, "i");
+  const or = [
+    { firstName: re },
+    { lastName: re },
+    { email: re },
+    { phoneNumber: re },
+    {
+      $expr: {
+        $regexMatch: {
+          input: { $concat: [{ $ifNull: ["$firstName", ""] }, " ", { $ifNull: ["$lastName", ""] }] },
+          regex: pattern,
+          options: "i",
+        },
+      },
+    },
+  ];
+
+  let digits = q.replace(/[\s()+-]/g, "");
+  if (/^\d{3,}$/.test(digits)) {
+    if (digits.startsWith("234")) digits = `0${digits.slice(3)}`;
+    or.push({ phoneNumber: new RegExp(digits) });
+  }
+  return { $or: or };
 }
 
 const Controller = {
