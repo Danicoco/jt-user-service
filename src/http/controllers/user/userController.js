@@ -188,6 +188,21 @@ const Controller = {
     }
   },
 
+  getUserByEmail: async (req, res) => {
+    try {
+      const email = String(req.query.email || "").trim().toLowerCase();
+      if (!email) return res.status(400).json({ error: "email required" });
+      const u = await User.findOne({ email, isDeleted: { $ne: true } })
+        .select("_id firstName lastName email phoneNumber createdAt")
+        .lean();
+      if (!u) return res.status(404).json({ error: "Not found" });
+      res.json(u);
+    } catch (e) {
+      console.error("internal get user by email error:", e);
+      res.status(500).json({ error: "internal error" });
+    }
+  },
+
   //this is a temporary method to batch lookup for populatin sender and reeivers details.
   batchLookup: async (req, res) => {
     try {

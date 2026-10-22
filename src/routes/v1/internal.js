@@ -24,8 +24,15 @@ router.post(
   UserController.batchLookup
 );
 
+// must stay above /users/:id
 router.get(
-  "/orders/latest", 
+  "/users/by-email",
+  internalAuth,
+  UserController.getUserByEmail
+);
+
+router.get(
+  "/orders/latest",
   internalAuth,
   OrderController.getLatesOrders
 );
