@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const { searchUsers } = require("../../../services/userService");
 const resendTemplate = require("../../../utils/emails/resend-notification");
 const { SendEmail } = require("../../../utils/emails/zeptomail");
+const { sendPush } = require("../../../services/pushService");
 // const Notification = require("../../../models/notification"); // would come back to this when notification service is availble
 
 const Controller = {
@@ -128,6 +129,33 @@ const Controller = {
       return jsonS(res, 200, "FCM token removed successfully");
     } catch (error) {
       console.error("Error removing FCM token:", error);
+      return jsonFailed(res, {}, "Internal Server Error", 500);
+    }
+  },
+
+  // sends a push to the caller's own devices only, so the app can check its
+  // FCM setup end to end
+  testPush: async (req, res) => {
+    const { id } = req.user;
+    const { title = "Test notification", body = "Push notifications are working.", data } = req.body || {};
+
+    try {
+      const result = await sendPush({
+        userIds: [String(id)],
+        title: String(title),
+        body: String(body),
+        data: { type: "test", ...(data && typeof data === "object" ? data : {}) },
+      });
+
+      if (result.skipped) {
+        return jsonFailed(res, result, "Push is not configured on the server (FIREBASE_SERVICE_ACCOUNT missing)", 503);
+      }
+      if (!result.targeted) {
+        return jsonFailed(res, result, "No FCM token registered for this account", 404);
+      }
+      return jsonS(res, 200, result.success ? "Test push sent" : "Test push failed for all devices", result);
+    } catch (error) {
+      console.error("Error sending test push:", error);
       return jsonFailed(res, {}, "Internal Server Error", 500);
     }
   },

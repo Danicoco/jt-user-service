@@ -10,6 +10,7 @@ router.post("/delete-profile", UserController.deleteProfile);
 router.get("/search", auth, UserController.searchUser);
 router.post("/fcm-token", auth, UserController.updateFcmToken);
 router.post("/fcm-token/remove", auth, UserController.removeFcmToken);
+router.post("/push/test", auth, UserController.testPush);
 router.patch("/delivery-address", auth, UserController.updateUserDelivery);
 router.patch("/notification", auth, UserController.updateNotificationSettings);
 // router.get("/notifications", auth, UserController.getUserNotifications);
