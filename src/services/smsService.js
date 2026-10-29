@@ -47,24 +47,35 @@ const drivers = {
         throw new Error("Sendar is not configured (SENDAR_API_KEY, SENDAR_SENDER_ID)");
       }
       const base = (SENDAR_BASE_URL || "https://sms-submit.sendar.io").replace(/\/+$/, "");
+      const type = SENDAR_WALLET_TYPE || "transactional";
+      console.log({
+        SENDAR_API_KEY,
+        SENDAR_BASE_URL,
+        SENDAR_SENDER_ID,
+        SENDAR_WALLET_TYPE,
+        type
+      });
+      const payload = [
+        {
+          number: to.replace(/^\+/, ""), // international format without "+"
+          body: message,
+          // non-ASCII text (emoji, accents) must go as unicode
+          sms_type: /[^\x00-\x7F]/.test(message) ? "unicode" : "plain",
+        },
+      ]
+      console.log({ payload })
       let resp;
       try {
         resp = await axios.post(
           `${base}/api/sms/send`,
           {
-            contact: [
-              {
-                number: to.replace(/^\+/, ""), // international format without "+"
-                body: message,
-                // non-ASCII text (emoji, accents) must go as unicode
-                sms_type: /[^\x00-\x7F]/.test(message) ? "unicode" : "plain",
-              },
-            ],
+            contact: payload,
             sender_id: SENDAR_SENDER_ID,
-            wallet_type: SENDAR_WALLET_TYPE || "transactional",
+            wallet_type: type
           },
           { headers: { "API-KEY": SENDAR_API_KEY }, timeout: 15000, validateStatus: () => true },
         );
+        console.log({ resp });
       } catch (err) {
         throw new Error(`Sendar request failed: ${err.message}`);
       }
