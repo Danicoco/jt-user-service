@@ -4,6 +4,8 @@ const Order = require("../../../models/order");
 const Address = require("../../../models/address");
 const Referral = require("../../../models/referral");
 const { sendPush } = require("../../../services/pushService");
+const { sendSms, SMS_PROVIDERS } = require("../../../services/smsService");
+const { normalizeNigerianPhone, isValidNigerianPhone, PHONE_RULE_MESSAGE } = require("../../../utils/phone");
 const { clearAccountStatus } = require("../../../services/accountStatusService");
 
 const PAID_STATUSES = ["pending", "confirmed", "in_transit", "completed"];
@@ -563,6 +565,26 @@ const Controller = {
     } catch (e) {
       console.error("push.send error:", e);
       return jsonFailed(res, {}, "Failed to send push", 500);
+    }
+  },
+
+  sendTestSms: async (req, res) => {
+    const { phoneNumber, message, provider } = req.body;
+    const phone = normalizeNigerianPhone(phoneNumber);
+    if (!isValidNigerianPhone(phone)) {
+      return jsonFailed(res, {}, PHONE_RULE_MESSAGE, 400);
+    }
+    if (provider && !SMS_PROVIDERS.includes(String(provider).toLowerCase())) {
+      return jsonFailed(res, {}, `provider must be one of ${SMS_PROVIDERS.join(", ")}`, 400);
+    }
+    const text = String(message || "").trim() || "This is a test message from Jamestown.";
+    try {
+      const result = await sendSms(phone, text, { provider });
+      return jsonS(res, 200, "SMS sent", { phoneNumber: phone, ...result });
+    } catch (e) {
+      // surface the provider's reason; this endpoint exists to debug SMS setup
+      console.error("sms.test error:", e);
+      return jsonFailed(res, { phoneNumber: phone }, e.message, 502);
     }
   },
 

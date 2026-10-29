@@ -150,8 +150,8 @@ const drivers = {
   },
 };
 
-function getDriver() {
-  const key = (process.env.SMS_PROVIDER || "sendar").toLowerCase();
+function getDriver(provider) {
+  const key = (provider || process.env.SMS_PROVIDER || "sendar").toLowerCase();
   const driver = drivers[key];
   if (!driver) throw new Error(`Unknown SMS_PROVIDER "${key}"`);
   // never pretend to send real OTPs in production
@@ -161,9 +161,10 @@ function getDriver() {
   return driver;
 }
 
-async function sendSms(phoneNumber, message) {
+// `provider` overrides SMS_PROVIDER for this one message (used by the internal SMS test endpoint)
+async function sendSms(phoneNumber, message, { provider } = {}) {
   const to = toE164(phoneNumber);
-  return getDriver().send(to, message);
+  return getDriver(provider).send(to, message);
 }
 
 async function sendOtpSms(phoneNumber, otp) {
@@ -173,4 +174,4 @@ async function sendOtpSms(phoneNumber, otp) {
   );
 }
 
-module.exports = { sendSms, sendOtpSms };
+module.exports = { sendSms, sendOtpSms, SMS_PROVIDERS: Object.keys(drivers) };

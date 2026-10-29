@@ -121,6 +121,12 @@ router.post(
   InternalController.sendPush
 );
 
+router.post(
+  "/sms/test",
+  internalAuth,
+  InternalController.sendTestSms
+);
+
 router.get(
   "/orders/sales-data",
   internalAuth,

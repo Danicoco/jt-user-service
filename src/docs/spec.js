@@ -980,6 +980,27 @@ const routes = [
       400: fail("userIds or all=true is required"),
     },
   }),
+  route("post", "/internal/sms/test", {
+    tag: "Internal",
+    auth: "internal",
+    summary: "Send a test SMS",
+    description:
+      "Sends `message` (or a default test text) to `phoneNumber` through the SMS provider set in SMS_PROVIDER. " +
+      "Pass `provider` (sendar, africastalking, termii, log) to try a different one without changing the env. " +
+      "A 502 carries the provider's rejection reason.",
+    body: { phoneNumber: "08012345678", message: "Hello from Jamestown", provider: "sendar" },
+    required: ["phoneNumber"],
+    responses: {
+      200: ok("SMS sent", {
+        phoneNumber: "08012345678",
+        provider: "sendar",
+        status: "sent",
+        messageId: "4b1331d1-1ec2-4f5d-8b17-5c64ad8609ae",
+      }),
+      400: fail("Phone number must be 11 digits and start with 070, 080, 081, 090, 091"),
+      502: fail("Sendar rejected the message (HTTP 401): Invalid or revoked API key", { phoneNumber: "08012345678" }),
+    },
+  }),
   route("get", "/internal/customers", {
     tag: "Internal",
     auth: "internal",
