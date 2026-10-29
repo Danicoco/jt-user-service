@@ -6,8 +6,23 @@ const { toE164 } = require("../utils/phone");
  * SMS provider abstraction.
  *
  * The provider is picked with the SMS_PROVIDER env var:
- *   "termii" sends real SMS through Termii (https://developers.termii.com/messaging-api)
- *   "log"    (default) writes the message to the server log, for local development
+ *   "sendar"         (default) sends real SMS through Sendar (https://sendar.io)
+ *   "africastalking" sends real SMS through Africa's Talking
+ *                    (https://developers.africastalking.com/docs/sms/overview)
+ *   "termii"         sends real SMS through Termii (https://developers.termii.com/messaging-api)
+ *   "log"            writes the message to the server log, for local development
+ *
+ * Sendar env:
+ *   SENDAR_API_KEY      API key (sk_live_... or sk_test_...)
+ *   SENDAR_SENDER_ID    registered sender name
+ *   SENDAR_WALLET_TYPE  billing wallet, "transactional" (default) or "promotional"
+ *   SENDAR_BASE_URL     optional, defaults to https://sms-submit.sendar.io
+ *
+ * Africa's Talking env:
+ *   AT_USERNAME   app username ("sandbox" for the sandbox app)
+ *   AT_API_KEY    API key (dashboard > Settings > API Key)
+ *   AT_SENDER_ID  optional approved sender ID / short code; omitted = AT default sender
+ *   AT_SANDBOX    "true" to use the sandbox API (implied when AT_USERNAME is "sandbox")
  *
  * Termii env:
  *   TERMII_API_KEY    API key (Termii dashboard > Settings > API token)
@@ -22,6 +37,83 @@ const drivers = {
       // warn so it shows in non-development log levels until a real provider is wired in
       logger.warn(`[SMS:log] to=${to} message="${message}"`);
       return { provider: "log", status: "queued" };
+    },
+  },
+
+  sendar: {
+    async send(to, message) {
+      const { SENDAR_API_KEY, SENDAR_SENDER_ID, SENDAR_WALLET_TYPE, SENDAR_BASE_URL } = process.env;
+      if (!SENDAR_API_KEY || !SENDAR_SENDER_ID) {
+        throw new Error("Sendar is not configured (SENDAR_API_KEY, SENDAR_SENDER_ID)");
+      }
+      const base = (SENDAR_BASE_URL || "https://sms-submit.sendar.io").replace(/\/+$/, "");
+      let resp;
+      try {
+        resp = await axios.post(
+          `${base}/api/sms/send`,
+          {
+            contact: [
+              {
+                number: to.replace(/^\+/, ""), // international format without "+"
+                body: message,
+                // non-ASCII text (emoji, accents) must go as unicode
+                sms_type: /[^\x00-\x7F]/.test(message) ? "unicode" : "plain",
+              },
+            ],
+            sender_id: SENDAR_SENDER_ID,
+            wallet_type: SENDAR_WALLET_TYPE || "transactional",
+          },
+          { headers: { "API-KEY": SENDAR_API_KEY }, timeout: 15000, validateStatus: () => true },
+        );
+      } catch (err) {
+        throw new Error(`Sendar request failed: ${err.message}`);
+      }
+      const body = resp.data || {};
+      const result = (body.data || [])[0];
+      if (resp.status >= 300 || body.status !== true || (result && /fail|reject/i.test(result.status || ""))) {
+        const reason = body.message || body.detail || (result && result.status) || JSON.stringify(body).slice(0, 200);
+        throw new Error(`Sendar rejected the message (HTTP ${resp.status}): ${reason}`);
+      }
+      return { provider: "sendar", status: "sent", messageId: result && result.message_id };
+    },
+  },
+
+  africastalking: {
+    async send(to, message) {
+      const { AT_USERNAME, AT_API_KEY, AT_SENDER_ID, AT_SANDBOX } = process.env;
+      if (!AT_USERNAME || !AT_API_KEY) {
+        throw new Error("Africa's Talking is not configured (AT_USERNAME, AT_API_KEY)");
+      }
+      const sandbox = AT_USERNAME === "sandbox" || String(AT_SANDBOX).toLowerCase() === "true";
+      const url = sandbox
+        ? "https://api.sandbox.africastalking.com/version1/messaging"
+        : "https://api.africastalking.com/version1/messaging";
+      const form = new URLSearchParams({ username: AT_USERNAME, to, message });
+      if (AT_SENDER_ID) form.append("from", AT_SENDER_ID);
+      let resp;
+      try {
+        resp = await axios.post(url, form.toString(), {
+          headers: {
+            apiKey: AT_API_KEY,
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          timeout: 15000,
+          validateStatus: () => true,
+        });
+      } catch (err) {
+        throw new Error(`Africa's Talking request failed: ${err.message}`);
+      }
+      const data = (resp.data && resp.data.SMSMessageData) || {};
+      const recipient = (data.Recipients || [])[0];
+      // 100 Processed, 101 Sent, 102 Queued; anything else (403 InvalidPhoneNumber, 405 InsufficientBalance, ...) failed
+      if (resp.status >= 300 || !recipient || ![100, 101, 102].includes(Number(recipient.statusCode))) {
+        const reason = recipient
+          ? `${recipient.status} (${recipient.statusCode})`
+          : data.Message || (typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data || {})).slice(0, 200);
+        throw new Error(`Africa's Talking rejected the message (HTTP ${resp.status}): ${reason}`);
+      }
+      return { provider: "africastalking", status: "sent", messageId: recipient.messageId };
     },
   },
 
@@ -59,12 +151,12 @@ const drivers = {
 };
 
 function getDriver() {
-  const key = (process.env.SMS_PROVIDER || "log").toLowerCase();
+  const key = (process.env.SMS_PROVIDER || "sendar").toLowerCase();
   const driver = drivers[key];
   if (!driver) throw new Error(`Unknown SMS_PROVIDER "${key}"`);
   // never pretend to send real OTPs in production
   if (key === "log" && process.env.NODE_ENV === "production") {
-    throw new Error('SMS_PROVIDER is not set to a real provider (e.g. "termii") in production');
+    throw new Error('SMS_PROVIDER is not set to a real provider (e.g. "sendar") in production');
   }
   return driver;
 }

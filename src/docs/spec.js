@@ -196,7 +196,7 @@ const routes = [
     summary: "Verify account with the sign-up (email) OTP",
     description:
       "Despite the name, this checks the OTP emailed at sign-up and marks the email verified. It then texts the phone OTP " +
-      "(via Termii); finish with `POST /auth/phone/verify`.",
+      "(via the configured SMS provider, Sendar by default); finish with `POST /auth/phone/verify`.",
     body: { phoneNumber: "08012345678", otp: "482913" },
     required: ["phoneNumber", "otp"],
     responses: {
@@ -215,7 +215,7 @@ const routes = [
     auth: "none",
     summary: "Resend the phone verification SMS",
     description:
-      "Sent by SMS through Termii. Only for accounts whose email is verified. Codes expire after 10 minutes; " +
+      "Sent by SMS through the configured provider (Sendar by default). Only for accounts whose email is verified. Codes expire after 10 minutes; " +
       "one request per 60 seconds per number. The response is the same whether or not the number exists.",
     body: { phoneNumber: "08012345678" },
     required: ["phoneNumber"],
