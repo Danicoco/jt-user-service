@@ -4,7 +4,7 @@ const Order = require("../../../models/order");
 const Address = require("../../../models/address");
 const Referral = require("../../../models/referral");
 const { sendPush } = require("../../../services/pushService");
-const { sendSms, SMS_PROVIDERS } = require("../../../services/smsService");
+const { sendSms, usesTwilioVerify, startPhoneVerification, SMS_PROVIDERS } = require("../../../services/smsService");
 const { normalizeNigerianPhone, isValidNigerianPhone, PHONE_RULE_MESSAGE } = require("../../../utils/phone");
 const { clearAccountStatus } = require("../../../services/accountStatusService");
 
@@ -579,6 +579,11 @@ const Controller = {
     }
     const text = String(message || "").trim() || "This is a test message from Jamestown.";
     try {
+      // Twilio Verify can't send free text: it texts one of its own codes instead
+      if (usesTwilioVerify(provider)) {
+        const result = await startPhoneVerification(phone);
+        return jsonS(res, 200, "Twilio Verify code sent", { phoneNumber: phone, ...result });
+      }
       const result = await sendSms(phone, text, { provider });
       return jsonS(res, 200, "SMS sent", { phoneNumber: phone, ...result });
     } catch (e) {

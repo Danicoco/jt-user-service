@@ -986,7 +986,8 @@ const routes = [
     summary: "Send a test SMS",
     description:
       "Sends `message` (or a default test text) to `phoneNumber` through the SMS provider set in SMS_PROVIDER. " +
-      "Pass `provider` (sendar, africastalking, termii, log) to try a different one without changing the env. " +
+      "Pass `provider` (sendar, africastalking, twilio, termii, log) to try a different one without changing the env. " +
+      "With twilio, `message` is ignored: Twilio Verify texts one of its own verification codes. " +
       "A 502 carries the provider's rejection reason.",
     body: { phoneNumber: "08012345678", message: "Hello from Jamestown", provider: "sendar" },
     required: ["phoneNumber"],

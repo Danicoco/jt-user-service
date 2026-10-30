@@ -10,6 +10,8 @@ const { toE164 } = require("../utils/phone");
  *   "africastalking" sends real SMS through Africa's Talking
  *                    (https://developers.africastalking.com/docs/sms/overview)
  *   "termii"         sends real SMS through Termii (https://developers.termii.com/messaging-api)
+ *   "twilio"         phone OTPs through Twilio Verify (https://www.twilio.com/docs/verify/api);
+ *                    Twilio makes, sends and checks the code, so no free-text SMS
  *   "log"            writes the message to the server log, for local development
  *
  * Sendar env:
@@ -23,6 +25,11 @@ const { toE164 } = require("../utils/phone");
  *   AT_API_KEY    API key (dashboard > Settings > API Key)
  *   AT_SENDER_ID  optional approved sender ID / short code; omitted = AT default sender
  *   AT_SANDBOX    "true" to use the sandbox API (implied when AT_USERNAME is "sandbox")
+ *
+ * Twilio env:
+ *   TWILIO_ACCOUNT_SID         Account SID (falls back to ACCOUNT_SID)
+ *   TWILIO_AUTH_TOKEN          Auth token (falls back to AUTH_TOKEN)
+ *   TWILIO_VERIFY_SERVICE_SID  Verify Service SID, VA... (falls back to VERIFY_SERVICE_SID)
  *
  * Termii env:
  *   TERMII_API_KEY    API key (Termii dashboard > Settings > API token)
@@ -128,6 +135,13 @@ const drivers = {
     },
   },
 
+  // Twilio is used through Verify (below), which only sends its own OTP codes
+  twilio: {
+    async send() {
+      throw new Error('SMS_PROVIDER "twilio" uses Twilio Verify, which can only send verification codes');
+    },
+  },
+
   termii: {
     async send(to, message) {
       const { TERMII_API_KEY, TERMII_BASE_URL, TERMII_SENDER_ID, TERMII_CHANNEL } = process.env;
@@ -161,8 +175,76 @@ const drivers = {
   },
 };
 
+/**
+ * Twilio Verify client: start a verification (Twilio texts its own code) and
+ * check the code the user typed.
+ */
+const twilioVerify = {
+  async request(path, params) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.AUTH_TOKEN;
+    const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID || process.env.VERIFY_SERVICE_SID;
+    if (!accountSid || !authToken || !serviceSid) {
+      throw new Error("Twilio Verify is not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID)");
+    }
+    try {
+      return await axios.post(
+        `https://verify.twilio.com/v2/Services/${encodeURIComponent(serviceSid)}/${path}`,
+        new URLSearchParams(params).toString(),
+        {
+          auth: { username: accountSid, password: authToken },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          timeout: 15000,
+          validateStatus: () => true,
+        },
+      );
+    } catch (err) {
+      throw new Error(`Twilio Verify request failed: ${err.message}`);
+    }
+  },
+
+  rejected(resp) {
+    const body = resp.data || {};
+    const reason = body.message || JSON.stringify(body).slice(0, 200);
+    return new Error(`Twilio Verify rejected the request (HTTP ${resp.status}): ${reason}${body.code ? ` (code ${body.code})` : ""}`);
+  },
+
+  async start(to) {
+    const resp = await this.request("Verifications", { To: to, Channel: "sms" });
+    if (resp.status >= 300) throw this.rejected(resp);
+    return { provider: "twilio", status: resp.data.status, messageId: resp.data.sid };
+  },
+
+  /** @returns {Promise<"approved"|"invalid"|"expired"|"too_many">} */
+  async check(to, code) {
+    const resp = await this.request("VerificationCheck", { To: to, Code: code });
+    const body = resp.data || {};
+    // 20404: no pending verification (expired, already used or never started)
+    if (resp.status === 404 || body.code === 20404) return "expired";
+    // 60202: max check attempts reached for this verification
+    if (resp.status === 429 || body.code === 60202) return "too_many";
+    if (resp.status >= 300) throw this.rejected(resp);
+    return body.status === "approved" ? "approved" : "invalid";
+  },
+};
+
+const providerKey = (provider) => (provider || process.env.SMS_PROVIDER || "sendar").toLowerCase();
+
+/** Whether phone OTPs go through Twilio Verify instead of our own code + SMS. */
+function usesTwilioVerify(provider) {
+  return providerKey(provider) === "twilio";
+}
+
+async function startPhoneVerification(phoneNumber) {
+  return twilioVerify.start(toE164(phoneNumber));
+}
+
+async function checkPhoneVerification(phoneNumber, code) {
+  return twilioVerify.check(toE164(phoneNumber), code);
+}
+
 function getDriver(provider) {
-  const key = (provider || process.env.SMS_PROVIDER || "sendar").toLowerCase();
+  const key = providerKey(provider);
   const driver = drivers[key];
   if (!driver) throw new Error(`Unknown SMS_PROVIDER "${key}"`);
   // never pretend to send real OTPs in production
@@ -185,4 +267,11 @@ async function sendOtpSms(phoneNumber, otp) {
   );
 }
 
-module.exports = { sendSms, sendOtpSms, SMS_PROVIDERS: Object.keys(drivers) };
+module.exports = {
+  sendSms,
+  sendOtpSms,
+  usesTwilioVerify,
+  startPhoneVerification,
+  checkPhoneVerification,
+  SMS_PROVIDERS: Object.keys(drivers),
+};

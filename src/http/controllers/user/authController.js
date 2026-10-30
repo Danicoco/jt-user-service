@@ -15,7 +15,12 @@ const {
 } = require("../../../services/referralService");
 const verificationTemplate = require("../../../utils/emails/notification-template");
 const resendTemplate = require("../../../utils/emails/resend-notification");
-const { sendOtpSms } = require("../../../services/smsService");
+const {
+  sendOtpSms,
+  usesTwilioVerify,
+  startPhoneVerification,
+  checkPhoneVerification,
+} = require("../../../services/smsService");
 const {
   normalizeNigerianPhone,
   isValidNigerianPhone,
@@ -27,14 +32,17 @@ const crypto = require("crypto");
 const PHONE_OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const PHONE_OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
 const PHONE_OTP_MAX_ATTEMPTS = 5;
+// stored in place of the code hash when Twilio Verify holds the code
+const TWILIO_VERIFY_OTP = "twilio-verify";
 
 async function issuePhoneOtp(user) {
+  const viaVerify = usesTwilioVerify();
   const otp = crypto.randomInt(100000, 1000000).toString();
   await User.updateOne(
     { _id: user._id },
     {
       $set: {
-        phoneOtp: bcrypt.hashSync(otp, 8),
+        phoneOtp: viaVerify ? TWILIO_VERIFY_OTP : bcrypt.hashSync(otp, 8),
         phoneOtpExpires: new Date(Date.now() + PHONE_OTP_TTL_MS),
         phoneOtpAttempts: 0,
         phoneOtpSentAt: new Date(),
@@ -42,7 +50,8 @@ async function issuePhoneOtp(user) {
     },
   );
   try {
-    await sendOtpSms(user.phoneNumber, otp);
+    if (viaVerify) await startPhoneVerification(user.phoneNumber);
+    else await sendOtpSms(user.phoneNumber, otp);
   } catch (err) {
     // the SMS didn't go out: don't make the user wait out the resend cooldown
     await User.updateOne({ _id: user._id }, { $unset: { phoneOtpSentAt: "" } });
@@ -352,7 +361,26 @@ const Controller = {
         );
       }
 
-      if (!bcrypt.compareSync(otp, user.phoneOtp)) {
+      // decided by how this code was sent, so switching SMS_PROVIDER doesn't break codes already out
+      if (user.phoneOtp === TWILIO_VERIFY_OTP) {
+        let result;
+        try {
+          result = await checkPhoneVerification(phoneNumber, otp);
+        } catch (err) {
+          console.error("verifyPhoneOtp Twilio Verify error:", err.message);
+          return jsonFailed(res, {}, "We couldn't check the code right now. Please try again shortly.", 503);
+        }
+        if (result === "expired") {
+          return jsonFailed(res, {}, "OTP expired. Please request a new one.", 400);
+        }
+        if (result === "too_many") {
+          return jsonFailed(res, {}, "Too many attempts. Please request a new OTP.", 429);
+        }
+        if (result !== "approved") {
+          await User.updateOne({ _id: user._id }, { $inc: { phoneOtpAttempts: 1 } });
+          return jsonFailed(res, {}, "Invalid or expired OTP", 400);
+        }
+      } else if (!bcrypt.compareSync(otp, user.phoneOtp)) {
         await User.updateOne({ _id: user._id }, { $inc: { phoneOtpAttempts: 1 } });
         return jsonFailed(res, {}, "Invalid or expired OTP", 400);
       }
