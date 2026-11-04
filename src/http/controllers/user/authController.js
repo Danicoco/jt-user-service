@@ -344,6 +344,7 @@ const Controller = {
       const user = await User.findOne({ phoneNumber }).select(
         "+phoneOtp +phoneOtpExpires +phoneOtpAttempts",
       );
+      console.log({ ONPHONEVERIFY: user });
       // a retry/double submit after success shouldn't look like a failure
       if (user?.isPhoneVerified) {
         return jsonS(res, 200, "Phone number already verified");
@@ -368,6 +369,7 @@ const Controller = {
         let result;
         try {
           result = await checkPhoneVerification(phoneNumber, otp);
+          console.log({ result })
         } catch (err) {
           console.error("verifyPhoneOtp Twilio Verify error:", err.message);
           return jsonFailed(res, {}, "We couldn't check the code right now. Please try again shortly.", 503);
