@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "normalize-phones": "node src/jobs/normalizePhoneNumbers.js",
     "test": "pretty-quick --staged"
   },
   "keywords": [],
