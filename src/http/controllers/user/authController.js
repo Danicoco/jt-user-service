@@ -65,7 +65,9 @@ async function issuePhoneOtp(user) {
  */
 async function sendPhoneOtpIfDue(user) {
   const fresh = await User.findById(user._id).select("+phoneOtpSentAt").lean();
+  console.log({ fresh });
   const last = fresh?.phoneOtpSentAt ? new Date(fresh.phoneOtpSentAt).getTime() : 0;
+  console.log({ last })
   if (Date.now() - last < PHONE_OTP_RESEND_COOLDOWN_MS) return false;
   await issuePhoneOtp(user);
   return true;
