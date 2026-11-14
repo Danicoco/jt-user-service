@@ -15,6 +15,8 @@ const {
 } = require("../../../services/referralService");
 const verificationTemplate = require("../../../utils/emails/notification-template");
 const resendTemplate = require("../../../utils/emails/resend-notification");
+const { loginAlertTemplate, loginContext } = require("../../../utils/emails/login-alert");
+const { isDisposableEmail, DISPOSABLE_EMAIL_MESSAGE } = require("../../../utils/disposableEmail");
 const {
   sendOtpSms,
   usesTwilioVerify,
@@ -87,6 +89,10 @@ const Controller = {
 
     if (!isValidNigerianPhone(phoneNumber)) {
       return jsonFailed(res, {}, PHONE_RULE_MESSAGE, 400);
+    }
+
+    if (isDisposableEmail(email)) {
+      return jsonFailed(res, {}, DISPOSABLE_EMAIL_MESSAGE, 400);
     }
 
     try {
@@ -205,6 +211,14 @@ const Controller = {
 
       req.session.user = user;
       const token = Controller.getToken(user);
+
+      // fire-and-forget: a mail failure must never block the login
+      SendEmail(
+        user,
+        "New sign-in to your Jamestown account",
+        loginAlertTemplate(user.firstName, loginContext(req)),
+      ).catch((e) => console.error("login alert email error:", e.message));
+
       return jsonS(res, 200, "success", token, {});
     } catch (error) {
       console.error(error);
