@@ -30,6 +30,7 @@ const {
 } = require("../../../utils/phone");
 
 const crypto = require("crypto");
+const { recordDevice, enqueueSignUp } = require("../../../services/snapCapiService");
 
 const PHONE_OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const PHONE_OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute
@@ -211,6 +212,9 @@ const Controller = {
 
       req.session.user = user;
       const token = Controller.getToken(user);
+
+      // ad attribution: refresh the stored device details (never blocks login)
+      recordDevice(user._id, req);
 
       // fire-and-forget: a mail failure must never block the login
       SendEmail(
@@ -410,6 +414,11 @@ const Controller = {
           $unset: { phoneOtp: "", phoneOtpExpires: "", phoneOtpAttempts: "" },
         },
       );
+
+      // ad attribution: the account is usable from here, so this is SIGN_UP.
+      // Fire-and-forget; both calls swallow their own errors.
+      recordDevice(user._id, req).then((device) => enqueueSignUp(user._id, device));
+
       return jsonS(res, 200, "Phone number verified");
     } catch (error) {
       console.error("verifyPhoneOtp error:", error);

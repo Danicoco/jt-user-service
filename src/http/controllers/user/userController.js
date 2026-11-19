@@ -5,6 +5,7 @@ const { searchUsers } = require("../../../services/userService");
 const resendTemplate = require("../../../utils/emails/resend-notification");
 const { SendEmail } = require("../../../utils/emails/zeptomail");
 const { sendPush } = require("../../../services/pushService");
+const { recordDevice } = require("../../../services/snapCapiService");
 // const Notification = require("../../../models/notification"); // would come back to this when notification service is availble
 
 const Controller = {
@@ -101,6 +102,9 @@ const Controller = {
         { _id: id },
         { $push: { fcmDevices: { token: fcmToken, platform, updatedAt: new Date() } } },
       );
+
+      // ad attribution: the app also sends its device details here on launch
+      recordDevice(id, req);
 
       return jsonS(res, 200, "FCM token updated successfully");
     } catch (error) {

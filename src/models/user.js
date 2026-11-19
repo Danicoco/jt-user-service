@@ -33,6 +33,23 @@ const FcmDeviceSchema = new Schema(
   { _id: false }
 );
 
+// latest device details sent by the mobile app, for Snap Conversions API
+// matching (see services/snapCapiService.js). Read by jt-wallet-service.
+const AdDeviceSchema = new Schema(
+  {
+    platform: { type: String, enum: ["ios", "android"] },
+    advertisingId: { type: String }, // IDFA / GAID, only when tracking is allowed
+    idfv: { type: String },
+    installId: { type: String },
+    trackingEnabled: { type: Boolean, default: false },
+    extinfo: { type: [String], default: undefined },
+    ip: { type: String },
+    userAgent: { type: String },
+    updatedAt: { type: Date },
+  },
+  { _id: false }
+);
+
 const RiskOverrideSchema = new Schema(
   {
     level: { type: String, enum: ["low", "medium", "high"], required: true },
@@ -119,6 +136,8 @@ const UserSchema = new Schema(
     fcmTokens: { type: [String], default: [] },
     // platform per token, so admin pushes can target android / ios
     fcmDevices: { type: [FcmDeviceSchema], default: [] },
+
+    adDevice: { type: AdDeviceSchema, default: undefined },
 
     // manual risk level set by an admin; overrides the computed level when present
     riskOverride: { type: RiskOverrideSchema, default: undefined },
